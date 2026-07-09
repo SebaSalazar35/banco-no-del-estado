@@ -336,4 +336,4 @@ La IA funcionó como apoyo para generar, revisar y corregir el código, pero cad
 
 ## Autor
 
-Proyecto académico — INACAP · TI3V31 Programación Front End.
+Proyecto académico por Sebastian Salazar — INACAP · TI3V31 Programación Front End.
