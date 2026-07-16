@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
 *.local
 
 # Variables de entorno con credenciales Firebase (NO subir al repositorio)

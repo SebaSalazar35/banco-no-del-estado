@@ -26,7 +26,13 @@ export default function MovementHistory({ movements, loading, error, currentUid 
   }
 
   const filteredMovements = useMemo(() => {
-    return movements.filter((movement) => {
+    const sorted = [...movements].sort((a, b) => {
+      const dateA = a.fecha?.toMillis?.() ?? (a.fecha ? new Date(a.fecha).getTime() : 0)
+      const dateB = b.fecha?.toMillis?.() ?? (b.fecha ? new Date(b.fecha).getTime() : 0)
+      return dateB - dateA
+    })
+
+    return sorted.filter((movement) => {
       const info = getMovementInfo(movement, currentUid)
 
       if (filterType === 'enviados' && !info.isOutgoing) {

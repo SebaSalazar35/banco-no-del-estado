@@ -12,13 +12,14 @@ Aplicación SPA que simula una banca digital básica con autenticación, saldo e
 2. [Instalación paso a paso](#instalación-paso-a-paso)
 3. [Configuración de Firebase](#configuración-de-firebase)
 4. [Ejecutar el proyecto](#ejecutar-el-proyecto)
-5. [Usuarios de prueba](#usuarios-de-prueba)
-6. [Modelo de datos](#modelo-de-datos)
-7. [Funcionalidades implementadas](#funcionalidades-implementadas)
-8. [Estructura del proyecto](#estructura-del-proyecto)
-9. [Intervenciones en el código](#intervenciones-en-el-código)
-10. [Variables de entorno y seguridad](#variables-de-entorno-y-seguridad)
-11. [Uso de IA](#uso-de-ia)
+5. [Tests unitarios](#tests-unitarios)
+6. [Usuarios de prueba](#usuarios-de-prueba)
+7. [Modelo de datos](#modelo-de-datos)
+8. [Funcionalidades implementadas](#funcionalidades-implementadas)
+9. [Estructura del proyecto](#estructura-del-proyecto)
+10. [Intervenciones en el código](#intervenciones-en-el-código)
+11. [Variables de entorno y seguridad](#variables-de-entorno-y-seguridad)
+12. [Uso de IA](#uso-de-ia)
 
 ---
 
@@ -147,6 +148,55 @@ VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
 | `npm run dev` | Servidor de desarrollo |
 | `npm run build` | Compila para producción |
 | `npm run preview` | Previsualiza build |
+| `npm test` | Ejecuta la suite de tests unitarios |
+| `npm run coverage` | Tests + reporte de cobertura |
+
+---
+
+## Tests unitarios
+
+Suite con **Vitest** + **React Testing Library** + **jsdom**. Los tests viven en la carpeta `testing/` y **no se conectan a Firebase real**: los servicios se mockean con `vi.mock` / `vi.fn`.
+
+### Cómo correrlos
+
+```bash
+npm install
+npm test
+npm run coverage
+```
+
+El reporte HTML de cobertura se genera en `coverage/index.html` (carpeta ignorada por Git).
+
+### Qué se testea
+
+| Área | Archivo de test | Cobertura |
+|------|-----------------|-----------|
+| Validaciones puras de transferencia | `testing/utils/validaciones.test.js` | 100% líneas en `src/utils/validaciones.js` |
+| Formulario de transferencia | `testing/components/TransferForm.test.jsx` | ~97% líneas |
+| Login | `testing/components/LoginForm.test.jsx` | ~97% líneas |
+| Historial de movimientos | `testing/components/MovementHistory.test.jsx` | ~78% líneas |
+| Hook de suscripción (bonus) | `testing/hooks/useMovements.test.jsx` | ~71% líneas |
+
+**Resumen de cobertura (umbrales críticos ≥ 70%):**
+
+| Archivo / carpeta | % líneas |
+|-------------------|----------|
+| `src/utils/validaciones.js` | **100%** |
+| `src/components/TransferForm.jsx` | **97%** |
+| `src/components/LoginForm.jsx` | **97%** |
+| `src/components/MovementHistory.jsx` | **78%** |
+| Conjunto crítico medido | **~90%** |
+
+### Refactors hechos para poder testear
+
+1. Extracción de `src/utils/validaciones.js` (`validarMonto`, `validarDestinatario`, `validarTransferencia`) — lógica pura fuera del componente.
+2. `TransferForm` ahora solo orquesta UI + servicio; las reglas de negocio se validan con la función pura.
+3. `MovementHistory` ordena los movimientos del más reciente al más antiguo en el propio componente (antes solo ordenaba el servicio).
+4. GitHub Actions: `.github/workflows/test.yml` corre `npm test` en cada push.
+
+### CI
+
+Workflow en `.github/workflows/test.yml` que ejecuta `npm ci` + `npm test` en cada push y pull request.
 
 ---
 
@@ -222,43 +272,39 @@ movimientos/{id}
 
 ```
 Prueba 2- MiniBanco/
-├── .env.example          # Plantilla de variables (sin secretos)
-├── .gitignore            # Excluye .env y node_modules
+├── .env.example
+├── .gitignore
+├── .github/workflows/test.yml   # CI: npm test en cada push
 ├── README.md
 ├── index.html
 ├── package.json
-├── vite.config.js
+├── vite.config.js               # Config Vitest + coverage
+├── testing/                     # Suite de tests unitarios
+│   ├── setup.js
+│   ├── utils/validaciones.test.js
+│   ├── components/
+│   │   ├── TransferForm.test.jsx
+│   │   ├── LoginForm.test.jsx
+│   │   └── MovementHistory.test.jsx
+│   └── hooks/useMovements.test.jsx
 └── src/
     ├── main.jsx
     ├── App.jsx
     ├── index.css
     ├── firebase/
-    │   └── config.js           # Inicialización Firebase
+    │   └── config.js
     ├── services/
-    │   ├── authService.js      # Login, registro, logout
-    │   ├── userService.js      # Perfil y saldo
-    │   ├── transferService.js  # Transferencias atómicas
-    │   └── movementService.js  # Suscripción a movimientos
+    │   ├── authService.js
+    │   ├── userService.js
+    │   ├── transferService.js   # se mockea en tests
+    │   └── movementService.js   # se mockea en tests
     ├── context/
-    │   ├── authReducer.js      # Reducer de sesión
-    │   └── AuthContext.jsx     # Provider global
     ├── hooks/
-    │   ├── useUserProfile.js   # onSnapshot del usuario
-    │   ├── useMovements.js     # onSnapshot del historial
-    │   └── useTheme.js         # Tema persistente
     ├── components/
-    │   ├── AuthPage.jsx
-    │   ├── LoginForm.jsx
-    │   ├── RegisterForm.jsx
-    │   ├── Dashboard.jsx
-    │   ├── BalanceCard.jsx
-    │   ├── TransferForm.jsx
-    │   ├── DepositWithdrawForm.jsx
-    │   ├── MovementHistory.jsx
-    │   ├── LoadingSpinner.jsx
-    │   └── ErrorMessage.jsx
     └── utils/
-        └── formatters.js
+        ├── formatters.js
+        ├── rut.js
+        └── validaciones.js      # lógica pura de transferencia
 ```
 
 ---
@@ -311,26 +357,22 @@ Resumen de lo creado y modificado respecto al template base de Vite:
 
 ## Uso de IA
 
-Se utilizó IA (Cursor/Claude) en distintas etapas del proyecto, no solo para escribir código:
+Se utilizó IA (Cursor) en distintas etapas del proyecto, no solo para escribir código:
 
-**Generación y estructura inicial**
-- Scaffolding con Vite, organización de carpetas (`services/`, `components/`, `hooks/`, `context/`)
-- Borrador del README y guías de configuración de Firebase
+**Evaluación 1 (app)**
+- Scaffolding, organización de carpetas y borrador del README
+- Revisión de suscripciones, transferencias atómicas y manejo de errores
 
-**Auditoría y revisiones del código**
-- Revisión de la separación entre capa de servicios y componentes de UI
-- Verificación de buenas prácticas reactivas: suscripciones con `onSnapshot`, función de limpieza (`unsubscribe`) en `useEffect` y dependencias correctas
-- Revisión del manejo de eventos: formularios controlados, `preventDefault`, validaciones antes de Firestore y prevención de doble submit
-- Auditoría de seguridad básica: credenciales en `.env`, `.gitignore` y plantilla `.env.example`
-- Revisión de la lógica de transferencias con `runTransaction` (atomicidad entre saldos y movimientos)
-- Corrección de mensajes de error traducidos al español y feedback visible al usuario
+**Evaluación 2 (testing) — qué se pidió**
+- Configurar Vitest + React Testing Library + jsdom según la rúbrica
+- Extraer validaciones puras y escribir tests AAA para transferencia, login e historial
+- Mockear servicios Firebase (`vi.mock`) y cubrir el unsubscribe del hook
 
-**Qué se ajustó manualmente después de la IA**
-- Lógica de fusión de dos suscripciones para el historial (enviados + recibidos)
-- Validación de RUT chileno y autenticación con RUT + contraseña
-- Decisiones de diseño visual (colores, layout del dashboard) y pruebas en Firebase Console
+**Ejemplo de test generado que se corrigió/descartó**
+- La IA propuso validar el destinatario como *email* (como en el enunciado genérico de XBank). En esta app el destinatario es un **RUT**, así que ese test se descartó y se reemplazó por casos con `validarDestinatario` / RUT inválido y auto-transferencia.
+- Otro test trivial (`expect(screen.getByText('Transferir dinero')).toBeInTheDocument()`) se descartó porque solo inflaba cobertura sin verificar comportamiento.
 
-La IA funcionó como apoyo para generar, revisar y corregir el código, pero cada decisión final fue validada probando la app en local (`npm run dev`) y entendiendo el flujo completo antes de integrarlo.
+La IA apoyó la generación, pero cada test se revisó para que verifique un comportamiento real y pueda explicarse en la defensa.
 
 ---
 

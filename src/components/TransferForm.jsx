@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { transferMoney } from '../services/transferService'
 import { translateErrorMessage } from '../utils/formatters'
-import { formatRut, getRutValidationMessage, normalizeRut } from '../utils/rut'
+import { formatRut } from '../utils/rut'
+import { validarTransferencia } from '../utils/validaciones'
 import ErrorMessage from './ErrorMessage'
 
 export default function TransferForm({ user, profile }) {
@@ -37,26 +38,15 @@ export default function TransferForm({ user, profile }) {
   const handleTransferSubmit = async (event) => {
     event.preventDefault()
 
-    const montoNumerico = Number(monto)
+    const validacion = validarTransferencia({
+      monto,
+      saldo: profile.saldo,
+      destinatarioRut,
+      emisorRut: profile.rut,
+    })
 
-    const rutError = getRutValidationMessage(destinatarioRut)
-    if (rutError) {
-      setError('Debes ingresar un RUT de destinatario válido.')
-      return
-    }
-
-    if (Number.isNaN(montoNumerico) || montoNumerico <= 0) {
-      setError('El monto debe ser mayor a 0.')
-      return
-    }
-
-    if (normalizeRut(destinatarioRut) === normalizeRut(profile.rut)) {
-      setError('No puedes transferir dinero a ti mismo.')
-      return
-    }
-
-    if (montoNumerico > profile.saldo) {
-      setError('Saldo insuficiente para completar la transferencia.')
+    if (!validacion.ok) {
+      setError(validacion.error)
       return
     }
 
@@ -68,8 +58,8 @@ export default function TransferForm({ user, profile }) {
       await transferMoney({
         emisorUid: user.uid,
         emisorRut: profile.rut,
-        destinatarioRut,
-        monto: montoNumerico,
+        destinatarioRut: validacion.destinatarioRut,
+        monto: validacion.monto,
         descripcion,
       })
 
